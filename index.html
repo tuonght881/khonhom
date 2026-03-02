@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản Lý Kho Nhôm Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .warning-text { color: #ef4444; font-size: 0.75rem; font-weight: bold; }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans pb-20">
+
+<header class="bg-gray-100 border-b border-gray-300 p-4 shadow-sm sticky top-0 z-50 grid grid-cols-3 items-center">
+    <div class="text-left">
+        <h1 class="text-xs font-black text-slate-700 tracking-tighter uppercase leading-tight">
+            Kho Nhôm
+        </h1>
+    </div>
+
+    <div class="text-center">
+        <h2 class="text-base font-black tracking-wide text-red-600 whitespace-nowrap uppercase italic">
+            TIỆM MÀN TRUNG TƯỜNG 2
+        </h2>
+    </div>
+
+    <div class="text-right">
+        <span id="connection-status" class="text-[9px] bg-yellow-500 text-white px-3 py-1 rounded-full font-bold shadow-sm transition-all duration-500 uppercase">
+            Kết nối...
+        </span>
+    </div>
+</header>
+
+    <nav class="flex justify-around bg-white border-b sticky top-[60px] z-40 shadow-sm">
+        <button onclick="showTab('inventory')" id="tab-inv" class="p-3 text-sm font-bold border-b-2 border-blue-600 text-blue-600">KHO</button>
+        <button onclick="showTab('add')" id="tab-add" class="p-3 text-sm font-bold">NHẬP</button>
+        <button onclick="showTab('cut')" id="tab-cut" class="p-3 text-sm font-bold text-orange-600">CẮT</button>
+    </nav>
+
+    <main class="p-4 max-w-4xl mx-auto">
+        
+        <section id="inventory" class="tab-content active">
+            <div class="flex flex-wrap gap-2 mb-4">
+                <select id="filter-type" onchange="renderInventory()" class="border p-2 rounded text-sm flex-1">
+                    <option value="All">Tất cả loại</option>
+                </select>
+                <select id="sort-order" onchange="renderInventory()" class="border p-2 rounded text-sm">
+                    <option value="desc">Dài -> Ngắn</option>
+                    <option value="asc">Ngắn -> Dài</option>
+                </select>
+            </div>
+            <div id="stock-list" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                </div>
+        </section>
+
+        <section id="add" class="tab-content">
+            <div class="bg-white p-5 rounded-xl shadow-sm border">
+                <h2 class="font-bold mb-4 text-gray-700">Cấu hình nhập kho</h2>
+                
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-gray-500 mb-1">LOẠI NHÔM:</label>
+                    <div class="flex gap-2">
+                        <select id="new-type-select" class="border p-2 rounded flex-1"></select>
+                        <button onclick="addNewTypePrompt()" class="bg-gray-200 px-3 rounded text-xl">+</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">ĐỘ DÀI CÂY NGUYÊN (cm):</label>
+                        <input type="number" id="new-original-len" value="600" class="w-full border p-2 rounded">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">SỐ LƯỢNG NHẬP:</label>
+                        <input type="number" id="new-qty" value="1" class="w-full border p-2 rounded">
+                    </div>
+                </div>
+
+                <button onclick="importStock()" id="btn-import" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg active:scale-95 transition">XÁC NHẬN NHẬP KHO</button>
+            </div>
+        </section>
+
+        <section id="cut" class="tab-content">
+            <div class="bg-white p-5 rounded-xl shadow-sm border mb-4">
+                <h2 class="font-bold mb-4">Lập danh sách cắt</h2>
+                <div class="grid grid-cols-12 gap-2 mb-4">
+                    <select id="cut-type" class="col-span-4 border p-2 rounded"></select>
+                    <input type="number" id="cut-length" placeholder="Dài (cm)" class="col-span-4 border p-2 rounded">
+                    <input type="number" id="cut-qty" placeholder="SL" value="1" class="col-span-2 border p-2 rounded text-center">
+                    <button onclick="addRequestToList()" class="col-span-2 bg-orange-500 text-white rounded font-bold">+</button>
+                </div>
+                
+                <div id="request-display" class="mb-4 space-y-2">
+                    </div>
+
+                <button onclick="processSmartCut()" class="w-full bg-slate-800 text-white py-4 rounded-xl font-bold">TÌM PHƯƠNG ÁN TỐI ƯU</button>
+            </div>
+
+            <div id="cut-proposals" class="space-y-4">
+                </div>
+        </section>
+    </main>
+
+    <div id="manual-modal" class="hidden fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6">
+            <h3 class="font-bold text-lg mb-4">Chọn cây khác để cắt</h3>
+            <div id="manual-options" class="max-h-60 overflow-y-auto space-y-2 mb-6 text-sm"></div>
+            <div class="flex gap-2">
+                <button onclick="closeManualModal()" class="flex-1 py-2 bg-gray-200 rounded-lg">Hủy</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCIkXopYV133e4FNUoJRYGc12FE3wg1y34",
+            authDomain: "ql-khonhom-5dccc.firebaseapp.com",
+            projectId: "ql-khonhom-5dccc",
+            storageBucket: "ql-khonhom-5dccc.firebasestorage.app",
+            messagingSenderId: "150168801606",
+            appId: "1:150168801606:web:a53e12f2afeeee0f07d547"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const stockCol = collection(db, "inventory");
+        const metaCol = collection(db, "metadata");
+
+        let rawInventory = [];
+        let cutRequests = [];
+        let types = ["Nâu", "Trắng", "Nẹp"];
+        let currentManualTargetIdx = null;
+
+        // --- KHỞI TẠO & TYPE MANAGEMENT ---
+        async function syncTypes() {
+            const docRef = doc(db, "metadata", "aluminum_types");
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                types = docSnap.data().list;
+            } else {
+                await setDoc(docRef, { list: types });
+            }
+            updateTypeDropdowns();
+        }
+
+        window.addNewTypePrompt = async () => {
+            const name = prompt("Nhập tên loại nhôm mới:");
+            if (name && !types.includes(name)) {
+                types.push(name);
+                await setDoc(doc(db, "metadata", "aluminum_types"), { list: types });
+                updateTypeDropdowns();
+            }
+        };
+
+        function updateTypeDropdowns() {
+            const html = types.map(t => `<option value="${t}">${t}</option>`).join('');
+            document.getElementById('new-type-select').innerHTML = html;
+            document.getElementById('cut-type').innerHTML = html;
+            document.getElementById('filter-type').innerHTML = `<option value="All">Tất cả loại</option>` + html;
+        }
+
+        // --- KHO HÀNG (GỘP NHÓM & SORT) ---
+        window.loadInventory = async () => {
+            const snapshot = await getDocs(stockCol);
+            rawInventory = [];
+            snapshot.forEach(d => rawInventory.push({ id: d.id, ...d.data() }));
+            renderInventory();
+        };
+
+window.renderInventory = () => {
+    const listDiv = document.getElementById('stock-list');
+    const filter = document.getElementById('filter-type').value;
+    const sort = document.getElementById('sort-order').value;
+
+    let filtered = rawInventory.filter(item => filter === 'All' || item.type === filter);
+    filtered.sort((a, b) => sort === 'asc' ? a.length - b.length : b.length - a.length);
+
+    // Gộp nhóm
+    let groups = {};
+    filtered.forEach(item => {
+        const key = `${item.type}-${item.length}`;
+        if (!groups[key]) groups[key] = { ...item, qty: 0, ids: [] };
+        groups[key].qty++;
+        groups[key].ids.push(item.id);
+    });
+
+    listDiv.innerHTML = Object.values(groups).map(g => `
+        <div class="bg-white p-3 rounded-xl border shadow-sm flex justify-between items-center transition hover:shadow-md">
+            <div>
+                <div class="font-bold text-lg text-slate-800 leading-tight uppercase tracking-wide">
+                    ${g.type}
+                </div>
+                <div class="text-sm font-semibold text-blue-800 mt-1">
+                    ${g.length} cm
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="text-[10px] text-gray-400 font-bold uppercase mb-1">Số lượng</div>
+                <div class="text-xl font-black text-slate-900 mb-2">${g.qty}</div>
+                <div class="flex gap-3 justify-end">
+                    <button onclick="editFirstInGroup('${g.ids[0]}', ${g.length})" class="text-blue-500 text-xs font-bold hover:underline">SỬA</button>
+                    <button onclick="deleteFirstInGroup('${g.ids[0]}')" class="text-red-400 text-xs font-bold hover:underline">XÓA</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+};
+
+        window.editFirstInGroup = async (id, oldLen) => {
+            const newLen = prompt("Cập nhật chiều dài (cm):", oldLen);
+            if (newLen && newLen != oldLen) {
+                await updateDoc(doc(db, "inventory", id), { length: parseInt(newLen) });
+                loadInventory();
+            }
+        }
+
+        window.deleteFirstInGroup = async (id) => {
+            if(confirm("Xóa 1 cây này khỏi kho?")) {
+                await deleteDoc(doc(db, "inventory", id));
+                loadInventory();
+            }
+        }
+
+        // --- NHẬP KHO ---
+        window.importStock = async () => {
+            const type = document.getElementById('new-type-select').value;
+            const len = parseInt(document.getElementById('new-original-len').value);
+            const qty = parseInt(document.getElementById('new-qty').value);
+            const btn = document.getElementById('btn-import');
+
+            btn.disabled = true; btn.innerText = "ĐANG LƯU...";
+            for(let i=0; i<qty; i++) {
+                await addDoc(stockCol, { type, length: len, createdAt: new Date() });
+            }
+            alert("Đã nhập kho thành công!");
+            btn.disabled = false; btn.innerText = "XÁC NHẬN NHẬP KHO";
+            loadInventory();
+            showTab('inventory');
+        };
+
+        // --- ĐỀ XUẤT CẮT ---
+        window.addRequestToList = () => {
+            const type = document.getElementById('cut-type').value;
+            const len = parseInt(document.getElementById('cut-length').value);
+            const qty = parseInt(document.getElementById('cut-qty').value);
+            if(!len || len <= 0) return;
+
+            let existing = cutRequests.find(r => r.type === type && r.length === len);
+            if(existing) existing.qty += qty;
+            else cutRequests.push({ type, length: len, qty });
+            
+            renderRequestDisplay();
+        };
+
+        function renderRequestDisplay() {
+            const ui = document.getElementById('request-display');
+            ui.innerHTML = cutRequests.map((r, i) => `
+                <div class="flex justify-between items-center bg-orange-50 p-2 rounded border border-orange-100 text-sm">
+                    <span><b>${r.qty}</b> cây x <b>${r.length}cm</b> (${r.type})</span>
+                    <button onclick="removeRequest(${i})" class="text-red-500 font-bold px-2">X</button>
+                </div>
+            `).join('');
+        }
+
+        window.removeRequest = (i) => { cutRequests.splice(i, 1); renderRequestDisplay(); };
+
+        let finalProposals = [];
+
+window.processSmartCut = async () => {
+    if(cutRequests.length === 0) return alert("Vui lòng thêm yêu cầu cắt!");
+    const div = document.getElementById('cut-proposals');
+    div.innerHTML = "<p class='text-center text-gray-500'>Đang tìm phương án dồn phế liệu tối ưu nhất...</p>";
+    
+    const snapshot = await getDocs(stockCol);
+    let localStock = [];
+    snapshot.forEach(d => localStock.push({ id: d.id, ...d.data() }));
+    
+    // Sắp xếp kho: Cây dài nhất xử lý trước
+    localStock.sort((a, b) => b.length - a.length);
+
+    let flatReqs = [];
+    cutRequests.forEach(r => {
+        for(let i=0; i<r.qty; i++) flatReqs.push({ type: r.type, length: r.length });
+    });
+
+    let groupedProposals = {}; 
+    let failedRequests = [];
+
+    for (let stockItem of localStock) {
+        let currentSourceId = stockItem.id;
+        let tempLen = stockItem.length;
+        let cutsForThisBar = [];
+
+        // Lọc yêu cầu cùng loại nhôm
+        let myTypeReqs = flatReqs.filter(r => r.type === stockItem.type);
+        if (myTypeReqs.length === 0) continue;
+
+        // CHIẾN THUẬT MỚI: Thử tìm xem có tổ hợp nào cộng lại BẰNG ĐÚNG tempLen không (Dư 0)
+        // Nếu không có dư 0, thì mới dùng chiến thuật nhét cây ngắn trước để dồn cây dài
+        
+        let changed = true;
+        while (changed) {
+            changed = false;
+            
+            // Ưu tiên sắp xếp NGẮN TRƯỚC (để 120cm lấp đầy 600cm trước khi 200cm chen vào)
+            // Điều này giúp 120 + 120 + 120 + 120 + 120 = 600 (Dư 0)
+            flatReqs.sort((a, b) => a.length - b.length);
+            
+            for (let i = 0; i < flatReqs.length; i++) {
+                if (flatReqs[i].type === stockItem.type && tempLen >= flatReqs[i].length) {
+                    cutsForThisBar.push(flatReqs[i].length);
+                    tempLen -= flatReqs[i].length;
+                    flatReqs.splice(i, 1);
+                    changed = true;
+                    break; 
+                }
+            }
+        }
+
+        if (cutsForThisBar.length > 0) {
+            groupedProposals[currentSourceId] = {
+                sourceId: currentSourceId,
+                initialLen: stockItem.length,
+                type: stockItem.type,
+                cuts: cutsForThisBar,
+                finalRemnant: tempLen
+            };
+        }
+    }
+
+    failedRequests = flatReqs;
+    renderGroupedProposals(groupedProposals, failedRequests);
+};
+
+function renderGroupedProposals(proposals, fails) {
+    const div = document.getElementById('cut-proposals');
+    div.innerHTML = `<h3 class="font-bold text-gray-700 mb-2">Phương án thực hiện:</h3>`;
+
+    // --- GỘP THÔNG BÁO LỖI (THIẾU CÂY) ---
+    if (fails.length > 0) {
+        // Gộp nhóm lỗi theo [Loại nhôm - Kích thước]
+        let failedGroups = {};
+        fails.forEach(f => {
+            const key = `${f.type}-${f.length}`;
+            if (!failedGroups[key]) {
+                failedGroups[key] = { type: f.type, length: f.length, qty: 0 };
+            }
+            failedGroups[key].qty++;
+        });
+
+        // Hiển thị từng nhóm lỗi đã gộp
+        Object.values(failedGroups).forEach(f => {
+            const err = document.createElement('div');
+            err.className = "bg-red-50 border-l-4 border-red-500 p-3 mb-2 flex justify-between items-center text-sm shadow-sm";
+            err.innerHTML = `
+                <div class="text-red-700">
+                    <span class="font-bold">⚠ Thiếu nhôm ${f.type}:</span> 
+                    Không đủ cây để cắt <span class="font-bold">${f.qty} đoạn ${f.length}cm</span>
+                </div>
+                <button onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-600 font-bold px-2">✕</button>
+            `;
+            div.appendChild(err);
+        });
+    }
+
+    // --- HIỂN THỊ CÁC NHÓM CẮT (GIỮ NGUYÊN NHƯ CŨ) ---
+    Object.values(proposals).forEach((p, idx) => {
+        const isBadRem = p.finalRemnant > 0 && (p.finalRemnant < 120 || p.finalRemnant % 2 !== 0);
+        const card = document.createElement('div');
+        card.className = "bg-white p-4 rounded-xl border shadow-sm mb-4";
+        
+        let cutCounts = {};
+        p.cuts.forEach(c => cutCounts[c] = (cutCounts[c] || 0) + 1);
+        let cutSummary = Object.entries(cutCounts).map(([len, qty]) => 
+            `<span class="bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold">${len}cm x ${qty}</span>`
+        ).join(' + ');
+
+        card.innerHTML = `
+            <div class="flex justify-between items-start mb-3">
+                <div>
+                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">${p.type}</span>
+                    <h4 class="font-bold text-lg text-slate-800">Cây gốc: ${p.initialLen}cm</h4>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" class="text-gray-300 hover:text-red-400">✕</button>
+            </div>
+            
+            <div class="py-3 border-y border-dashed border-gray-200 mb-3">
+                <p class="text-xs text-gray-500 mb-2 font-semibold">DANH SÁCH CẮT:</p>
+                <div class="flex flex-wrap gap-2 text-sm">${cutSummary}</div>
+            </div>
+
+            <div class="flex justify-between items-end">
+                <div>
+                    <span class="text-xs text-gray-500">CÒN DƯ:</span>
+                    <span class="text-lg font-bold ${isBadRem ? 'text-red-500' : 'text-green-600'}">${p.finalRemnant}cm</span>
+                    ${isBadRem ? `<div class="text-[10px] text-red-500 font-bold uppercase mt-1 italic">⚠ Dư < 120cm hoặc số lẻ</div>` : ''}
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="openManualModalForGroup('${p.sourceId}', ${idx})" class="text-xs bg-gray-100 px-3 py-2 rounded-lg font-medium">Đổi cây gốc</button>
+                    <button onclick="executeGroupCut('${p.sourceId}', ${p.finalRemnant}, this)" class="bg-slate-800 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-sm active:bg-black">XÁC NHẬN CẮT XONG</button>
+                </div>
+            </div>
+        `;
+        div.appendChild(card);
+    });
+}
+
+window.executeGroupCut = async (sourceId, finalRem, btn) => {
+    btn.disabled = true;
+    btn.innerHTML = `<span class="animate-spin inline-block mr-1">↻</span>...`;
+    
+    if(finalRem > 0) {
+        await updateDoc(doc(db, "inventory", sourceId), { length: finalRem });
+    } else {
+        await deleteDoc(doc(db, "inventory", sourceId));
+    }
+    
+    btn.closest('.bg-white').classList.add('opacity-30', 'grayscale');
+    btn.innerHTML = "ĐÃ CẬP NHẬT KHO";
+    loadInventory();
+};
+
+        function renderProposals() {
+            const div = document.getElementById('cut-proposals');
+            div.innerHTML = `<h3 class="font-bold text-gray-700 mb-2">Kết quả đề xuất:</h3>`;
+            
+            finalProposals.forEach((p, i) => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-4 rounded-xl border shadow-sm space-y-2 relative";
+                if(p.status === 'FAIL') {
+                    card.innerHTML = `<div class="text-red-500 font-bold italic">⚠ Không đủ nhôm ${p.type} để cắt cây ${p.cutLen}cm</div>`;
+                } else {
+                    const isBadRem = p.remnant > 0 && (p.remnant < 120 || p.remnant % 2 !== 0);
+                    card.innerHTML = `
+                        <div class="flex justify-between">
+                            <span class="text-xs font-bold text-gray-400">CẮT ${p.type.toUpperCase()}</span>
+                            <button onclick="removeProposal(${i})" class="text-gray-400 text-xs underline">Hủy bỏ</button>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="text-center bg-gray-100 p-2 rounded">
+                                <div class="text-[10px] text-gray-500">CÂY GỐC</div>
+                                <div class="font-bold">${p.sourceLen}cm</div>
+                            </div>
+                            <div class="text-blue-500 font-bold">→</div>
+                            <div class="text-center bg-blue-50 p-2 rounded border border-blue-100">
+                                <div class="text-[10px] text-blue-600 font-bold font-bold">CẦN LẤY</div>
+                                <div class="font-bold text-blue-700">${p.cutLen}cm</div>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center pt-2 border-t">
+                            <div>
+                                <span class="text-xs text-gray-500">CÒN DƯ:</span> 
+                                <span class="font-bold ${isBadRem ? 'text-red-500' : 'text-green-600'}">${p.remnant}cm</span>
+                                ${isBadRem ? `<div class="warning-text">Lưu ý: Dư <120cm hoặc số lẻ</div>` : ''}
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="openManualModal(${i})" class="text-[10px] bg-gray-100 px-2 py-1 rounded">Đổi cây</button>
+                                <button onclick="executeCut(${i}, this)" class="bg-green-600 text-white px-3 py-1 rounded text-xs font-bold">Xong</button>
+                            </div>
+                        </div>
+                    `;
+                }
+                div.appendChild(card);
+            });
+        }
+
+        window.removeProposal = (i) => { finalProposals.splice(i, 1); renderProposals(); };
+
+        // --- ĐIỀU CHỈNH THỦ CÔNG ---
+        window.openManualModal = (propIdx) => {
+            currentManualTargetIdx = propIdx;
+            const p = finalProposals[propIdx];
+            const listUi = document.getElementById('manual-options');
+            
+            // Tìm các cây cùng loại trong kho mà chưa được chọn ở các đề xuất khác
+            const usedIds = finalProposals.filter((item, idx) => idx !== propIdx && item.sourceId).map(item => item.sourceId);
+            const options = rawInventory.filter(s => s.type === p.type && s.length >= p.cutLen && !usedIds.includes(s.id));
+            
+            listUi.innerHTML = options.map(s => {
+                const rem = s.length - p.cutLen;
+                const isBad = rem > 0 && (rem < 120 || rem % 2 !== 0);
+                return `
+                    <div onclick="selectManualSource('${s.id}', ${s.length})" class="p-3 border rounded-lg cursor-pointer hover:bg-blue-50">
+                        <b>${s.length}cm</b> 
+                        <span class="text-xs ml-2 ${isBad ? 'text-red-500' : 'text-green-600'}">(Dư: ${rem}cm ${isBad ? '⚠' : ''})</span>
+                    </div>
+                `;
+            }).join('');
+            if(options.length === 0) listUi.innerHTML = "Không còn cây nào khác phù hợp.";
+            document.getElementById('manual-modal').classList.remove('hidden');
+        };
+
+        window.selectManualSource = (id, len) => {
+            const p = finalProposals[currentManualTargetIdx];
+            p.sourceId = id;
+            p.sourceLen = len;
+            p.remnant = len - p.cutLen;
+            closeManualModal();
+            renderProposals();
+        };
+
+        window.closeManualModal = () => document.getElementById('manual-modal').classList.add('hidden');
+
+        window.executeCut = async (idx, btn) => {
+            const p = finalProposals[idx];
+            btn.disabled = true; btn.innerText = "...";
+            
+            if(p.remnant > 0) {
+                await updateDoc(doc(db, "inventory", p.sourceId), { length: p.remnant });
+            } else {
+                await deleteDoc(doc(db, "inventory", p.sourceId));
+            }
+            
+            finalProposals.splice(idx, 1);
+            loadInventory();
+            renderProposals();
+        };
+
+        window.showTab = (tabId) => {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('border-b-2', 'border-blue-600', 'text-blue-600'));
+            document.getElementById(tabId).classList.add('active');
+            const btnId = tabId === 'inventory' ? 'tab-inv' : tabId === 'add' ? 'tab-add' : 'tab-cut';
+            document.getElementById(btnId).classList.add('border-b-2', 'border-blue-600', 'text-blue-600');
+            if(tabId === 'inventory') loadInventory();
+        };
+
+        // Khởi chạy
+        syncTypes();
+        loadInventory();
+
+// --- LOGIC KIỂM TRA KẾT NỐI THỰC TẾ ---
+const statusEl = document.getElementById('connection-status');
+
+// Kiểm tra kết nối Internet của trình duyệt
+window.addEventListener('online', updateStatus);
+window.addEventListener('offline', updateStatus);
+
+function updateStatus() {
+    if (navigator.onLine) {
+        statusEl.innerText = "Đã kết nối";
+        statusEl.classList.remove('bg-red-500', 'bg-yellow-600');
+        statusEl.classList.add('bg-green-500');
+    } else {
+        statusEl.innerText = "Mất kết nối";
+        statusEl.classList.remove('bg-green-500', 'bg-yellow-600');
+        statusEl.classList.add('bg-red-500');
+    }
+}
+
+// Chạy kiểm tra ngay khi load trang
+updateStatus();
+    </script>
+</body>
+</html>
