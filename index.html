@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản Lý Kho Nhôm - Trung Tường 2</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
             /* Ẩn nút mũi tên lên xuống của input number trên Chrome, Safari, Edge, Opera */
     input::-webkit-outer-spin-button,
@@ -26,7 +27,7 @@
 </head>
 <body class="bg-gray-50 font-sans pb-20">
 
-    <div id="auth-screen" class="fixed inset-0 bg-slate-900 z-[100] flex flex-col items-center justify-center text-white p-6">
+    <div id="auth-screen" class="fixed inset-0 bg-slate-900 z-[100] flex flex-col items-center justify-center text-white p-6 hidden" style="display: none !important;">
         <div class="bg-white p-8 rounded-2xl shadow-2xl text-center w-full max-w-sm">
             <h2 class="text-2xl font-black text-slate-800 mb-2 italic">TIỆM MÀN<br>TRUNG TƯỜNG 2</h2>
             <p class="text-gray-500 mb-8 text-sm uppercase tracking-widest font-bold">Hệ thống kho nội bộ</p>
@@ -39,6 +40,28 @@
                 <label for="remember-me" class="text-gray-600 text-sm cursor-pointer font-medium">Ghi nhớ đăng nhập</label>
             </div>
         </div>
+    </div>
+
+    <!-- Loading overlay toàn màn hình (cho auth và load data) -->
+    <div id="loading-overlay" class="fixed inset-0 bg-white/90 z-[110] flex items-center justify-center hidden">
+        <div class="flex flex-col items-center gap-4">
+            <svg class="animate-spin h-12 w-12 text-blue-500" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+            </svg>
+            <p class="text-gray-600 font-bold text-lg">Đang kiểm tra đăng nhập...</p>
+        </div>
+    </div>
+<div id="app-main" class="hidden">
+    <!-- Trong #stock-list (section inventory), thêm spinner riêng cho load kho -->
+    <!-- Bạn có thể thêm trực tiếp vào #stock-list.innerHTML khi loading, nhưng để đơn giản, thêm div con -->
+    <div id="inventory-loading" class="hidden text-center py-10 col-span-full">
+        <svg class="animate-spin h-8 w-8 text-blue-500 mx-auto mb-2" viewBox="0 0 24 24">
+            <!-- Giống svg trên, nhưng nhỏ hơn -->
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+        </svg>
+        <p class="text-gray-500 font-bold">Đang tải kho...</p>
     </div>
 
     <header class="bg-gray-100 border-b border-gray-300 p-4 shadow-sm fixed top-0 left-0 right-0 z-[70] min-h-[64px] grid grid-cols-3 items-center">
@@ -146,15 +169,30 @@
             </div>
             <div id="cut-proposals" class="space-y-4"></div>
         </section>
+</div>
     </main>
 
-    <div id="manual-modal" class="hidden fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl">
-            <h3 class="font-bold text-lg mb-4">Chọn cây gốc thay thế</h3>
-            <div id="manual-options" class="max-h-60 overflow-y-auto space-y-2 mb-6"></div>
-            <button onclick="closeManualModal()" class="w-full py-3 bg-gray-100 rounded-xl font-bold text-gray-500">HỦY BỎ</button>
-        </div>
-    </div>
+<script>
+    // Hiện loading overlay NGAY LẬP TỨC, trước khi DOM render
+    window.addEventListener('load', function() {
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) {
+            overlay.classList.remove('hidden');
+            overlay.querySelector('p').innerText = 'Đang kiểm tra phiên đăng nhập...';
+        }
+    });
+    // Hoặc dùng cách mạnh hơn: hiện ngay khi script chạy
+    (function() {
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) overlay.classList.remove('hidden');
+    })();
+</script>
+    <script>
+    // Hiện loading ngay khi trang bắt đầu load (trước khi Firebase init)
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('loading-overlay').classList.remove('hidden');
+    });
+    </script>
     <script src="/script.js" type="module"></script>
 </body>
 </html>
