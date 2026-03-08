@@ -295,33 +295,182 @@ window.renderInventory = () => {
         return;
     }
 
-            listDiv.innerHTML = Object.values(groups).map(g => `
-                <div class="bg-white p-3 rounded-xl border shadow-sm flex justify-between items-center">
-                    <div>
-                        <div class="font-bold text-slate-800 uppercase">${g.type}</div>
-                        <div class="text-sm font-bold text-blue-700">${g.qty} cây</div>
-                    </div>
-                    <div class="text-right">
-                        <div class="text-xl font-black text-slate-900">${g.length} cm</div>
-                        <div class="flex gap-3 justify-end mt-1">
-                            <button onclick="editFirstInGroup('${g.ids[0]}', ${g.length})" class="text-blue-500 text-[10px] font-bold">SỬA</button>
-                            <button onclick="deleteFirstInGroup('${g.ids[0]}')" class="text-red-400 text-[10px] font-bold">XÓA</button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
+listDiv.innerHTML = Object.values(groups).map(g => `
+    <div class="bg-white p-3 rounded-xl border shadow-sm flex justify-between items-center">
+        <div>
+            <div class="font-bold text-slate-800 uppercase">${g.type}</div>
+            <div class="text-sm font-bold text-blue-700">${g.qty} cây</div>
+        </div>
+        <div class="text-right">
+            <div class="text-xl font-black text-slate-900">${g.length} cm</div>
+            <div class="flex gap-3 justify-end mt-1">
+                <button 
+                    class="text-blue-500 text-[10px] font-bold edit-group-btn"
+                    data-type="${g.type.replace(/"/g, '&quot;')}" 
+                    data-length="${g.length}"
+                    data-qty="${g.qty}"
+                    data-ids="${g.ids.join(',')}">
+                    SỬA
+                </button>
+                <button 
+                    class="text-red-400 text-[10px] font-bold delete-group-btn"
+                    data-type="${g.type.replace(/"/g, '&quot;')}"
+                    data-length="${g.length}"
+                    data-qty="${g.qty}"
+                    data-ids="${g.ids.join(',')}">
+                    XÓA
+                </button>
+            </div>
+        </div>
+    </div>
+`).join('');
 };
-        window.editFirstInGroup = async (id, oldLen) => {
-            const newLen = prompt("Chiều dài mới (cm):", oldLen);
-            if (newLen && newLen != oldLen) {
-                await updateDoc(doc(db, "inventory", id), { length: parseInt(newLen) });
-                loadInventory();
-            }
-        };
 
-        window.deleteFirstInGroup = async (id) => {
-            if (confirm("Xóa 1 cây này?")) { await deleteDoc(doc(db, "inventory", id)); loadInventory(); }
-        };
+window.openEditModal = (type, length, maxQty, idsStr) => {
+    const modal = document.getElementById('edit-modal');
+    const typeSelect = document.getElementById('edit-type');
+    const lengthInput = document.getElementById('edit-length');
+    const qtyNormal = document.getElementById('edit-qty-normal');
+    const qtySingle = document.getElementById('edit-qty-single');
+    const maxQtySpan = document.getElementById('edit-max-qty');
+    const maxQtyLabel = document.getElementById('edit-max-qty-label');
+    const qtyInput = document.getElementById('edit-qty');
+    const preview = document.getElementById('edit-preview');
+    const confirmBtn = document.getElementById('confirm-edit');
+
+    // Fill data
+    typeSelect.innerHTML = types.map(t => `<option value="${t}" ${t === type ? 'selected' : ''}>${t}</option>`).join('');
+    lengthInput.value = length;
+
+    if (maxQty === 1) {
+        qtyNormal.classList.add('hidden');
+        qtySingle.classList.remove('hidden');
+        maxQtyLabel.classList.add('hidden');  // Ẩn "(1 - 1)"
+    } else {
+        qtyNormal.classList.remove('hidden');
+        qtySingle.classList.add('hidden');
+        maxQtyLabel.classList.remove('hidden');
+        maxQtySpan.innerText = maxQty;
+        qtyInput.value = 1;
+        qtyInput.max = maxQty;
+    }
+
+    // Preview live
+    const updatePreview = () => {
+        const applyQty = (maxQty === 1) ? 1 : (parseInt(qtyInput.value) || 1);
+        preview.innerText = `Sau sửa: ${applyQty} cây sẽ thành loại "${typeSelect.value}", dài ${lengthInput.value}cm.`;
+    };
+
+    typeSelect.onchange = updatePreview;
+    lengthInput.oninput = updatePreview;
+    if (maxQty > 1) qtyInput.oninput = updatePreview;
+    updatePreview();
+
+    // Confirm
+    confirmBtn.onclick = async () => {
+        const newType = typeSelect.value;
+        const newLen = parseInt(lengthInput.value);
+        const applyQty = (maxQty === 1) ? 1 : parseInt(qtyInput.value);
+
+        if (isNaN(newLen) || applyQty < 1 || applyQty > maxQty) {
+            return alert("Dữ liệu không hợp lệ!");
+        }
+
+        const ids = idsStr.split(',').sort((a, b) => {
+            const itemA = rawInventory.find(i => i.id === a);
+            const itemB = rawInventory.find(i => i.id === b);
+            return (itemA?.createdAt || 0) - (itemB?.createdAt || 0);
+        });
+
+        try {
+            for (let i = 0; i < applyQty; i++) {
+                await updateDoc(doc(db, "inventory", ids[i]), { type: newType, length: newLen });
+            }
+            closeEditModal();
+            loadInventory();
+        } catch (e) {
+            alert("Lỗi: " + e.message);
+        }
+    };
+
+    modal.classList.remove('hidden');
+};
+
+window.closeEditModal = () => document.getElementById('edit-modal').classList.add('hidden');
+
+window.openDeleteModal = (type, length, maxQty, idsStr) => {
+    const modal = document.getElementById('delete-modal');
+    const qtyNormal = document.getElementById('delete-qty-normal');
+    const qtySingle = document.getElementById('delete-qty-single');
+    const maxQtySpan = document.getElementById('delete-max-qty');
+    const maxQtySpan2 = document.getElementById('delete-max-qty2');
+    const maxQtyLabel = document.getElementById('delete-max-qty-label');
+    const typeSpan = document.getElementById('delete-type');
+    const lengthSpan = document.getElementById('delete-length');
+    const qtyInput = document.getElementById('delete-qty');
+    const preview = document.getElementById('delete-preview');
+    const confirmBtn = document.getElementById('confirm-delete');
+
+    // Fill data
+    typeSpan.innerText = type;
+    lengthSpan.innerText = length;
+
+    if (maxQty === 1) {
+        qtyNormal.classList.add('hidden');
+        qtySingle.classList.remove('hidden');
+        maxQtyLabel.classList.add('hidden');  // Ẩn "(1 - 1)"
+        maxQtySpan.innerText = maxQty;
+        maxQtySpan2.innerText = maxQty;
+    } else {
+        qtyNormal.classList.remove('hidden');
+        qtySingle.classList.add('hidden');
+        maxQtyLabel.classList.remove('hidden');
+        maxQtySpan.innerText = maxQty;
+        maxQtySpan2.innerText = maxQty;
+        qtyInput.value = 1;
+        qtyInput.max = maxQty;
+    }
+
+    // Preview live
+    const updatePreview = () => {
+        const deleteQty = (maxQty === 1) ? 1 : (parseInt(qtyInput.value) || 1);
+        preview.innerText = `Sẽ xóa vĩnh viễn ${deleteQty} cây (cũ nhất trong nhóm).`;
+    };
+
+    if (maxQty > 1) qtyInput.oninput = updatePreview;
+    updatePreview();
+
+    // Confirm
+    confirmBtn.onclick = async () => {
+        const deleteQty = (maxQty === 1) ? 1 : parseInt(qtyInput.value);
+
+        if (isNaN(deleteQty) || deleteQty < 1 || deleteQty > maxQty) {
+            return alert("Số lượng không hợp lệ!");
+        }
+
+        if (!confirm(`Xác nhận xóa ${deleteQty} cây? Không thể khôi phục!`)) return;
+
+        const ids = idsStr.split(',').sort((a, b) => {
+            const itemA = rawInventory.find(i => i.id === a);
+            const itemB = rawInventory.find(i => i.id === b);
+            return (itemA?.createdAt || 0) - (itemB?.createdAt || 0);
+        });
+
+        try {
+            for (let i = 0; i < deleteQty; i++) {
+                await deleteDoc(doc(db, "inventory", ids[i]));
+            }
+            closeDeleteModal();
+            loadInventory();
+        } catch (e) {
+            alert("Lỗi: " + e.message);
+        }
+    };
+
+    modal.classList.remove('hidden');
+};
+
+window.closeDeleteModal = () => document.getElementById('delete-modal').classList.add('hidden');
 
 window.importStock = async () => {
     const type = document.getElementById('new-type-select').value;
@@ -892,3 +1041,28 @@ function initSortable() {
         });
     });
 }
+
+// Xử lý click cho nút SỬA / XÓA trong kho
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('edit-group-btn')) {
+        const btn = e.target;
+        openEditModal(
+            btn.dataset.type,
+            Number(btn.dataset.length),
+            Number(btn.dataset.qty),
+            btn.dataset.ids
+        );
+        return;
+    }
+
+    if (e.target.classList.contains('delete-group-btn')) {
+        const btn = e.target;
+        openDeleteModal(
+            btn.dataset.type,
+            Number(btn.dataset.length),
+            Number(btn.dataset.qty),
+            btn.dataset.ids
+        );
+        return;
+    }
+});

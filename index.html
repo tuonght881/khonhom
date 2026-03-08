@@ -209,6 +209,70 @@
             </main>
         </div>
     </div>
+
+<!-- MODAL SỬA -->
+<div id="edit-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white p-6 rounded-xl max-w-md w-full mx-4 shadow-xl">
+        <h3 class="font-bold text-lg mb-4">Sửa nhóm cây</h3>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1">LOẠI NHÔM:</label>
+                <select id="edit-type" class="w-full border p-2 rounded"></select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-500 mb-1">ĐỘ DÀI MỚI (cm):</label>
+                <input type="number" id="edit-length" class="w-full border p-2 rounded font-bold">
+            </div>
+            <div>
+                <div class="flex items-center justify-between">
+                    <label class="text-xs font-bold text-gray-500">ÁP DỤNG CHO BAO NHIÊU CÂY</label>
+                    <span id="edit-max-qty-label" class="text-xs text-gray-500 hidden">(1 - <span id="edit-max-qty"></span>)</span>
+                </div>
+                <div id="edit-qty-normal" class="hidden">
+                    <input type="number" id="edit-qty" min="1" class="w-full border p-2 rounded font-bold mt-1">
+                </div>
+                <div id="edit-qty-single" class="hidden text-sm text-gray-700 font-medium mt-1">
+                    Chỉ có <strong>1 cây</strong> trong nhóm → sẽ áp dụng thay đổi cho cây duy nhất.
+                </div>
+            </div>
+            <p id="edit-preview" class="text-sm text-gray-600 italic"></p>
+        </div>
+        <div class="flex gap-2 mt-6">
+            <button onclick="closeEditModal()" class="flex-1 bg-gray-200 py-2 rounded font-bold">HỦY</button>
+            <button id="confirm-edit" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold">XÁC NHẬN</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL XÓA -->
+<div id="delete-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white p-6 rounded-xl max-w-md w-full mx-4 shadow-xl">
+        <h3 class="font-bold text-lg mb-4">Xóa cây trong nhóm</h3>
+        <div class="space-y-4">
+            <p class="text-sm text-gray-600">
+                Nhóm hiện có <strong><span id="delete-max-qty"></span> cây</strong> loại <strong><span id="delete-type"></span></strong>, dài <strong><span id="delete-length"></span>cm</strong>.
+            </p>
+            <div>
+                <div class="flex items-center justify-between">
+                    <label class="text-xs font-bold text-gray-500">SỐ LƯỢNG MUỐN XÓA</label>
+                    <span id="delete-max-qty-label" class="text-xs text-gray-500 hidden">(1 - <span id="delete-max-qty2"></span>)</span>
+                </div>
+                <div id="delete-qty-normal" class="hidden">
+                    <input type="number" id="delete-qty" min="1" class="w-full border p-2 rounded font-bold mt-1">
+                </div>
+                <div id="delete-qty-single" class="hidden text-sm text-gray-700 font-medium mt-1">
+                    Chỉ có <strong>1 cây</strong> trong nhóm → sẽ xóa cây duy nhất.
+                </div>
+            </div>
+            <p id="delete-preview" class="text-sm text-red-600 italic"></p>
+        </div>
+        <div class="flex gap-2 mt-6">
+            <button onclick="closeDeleteModal()" class="flex-1 bg-gray-200 py-2 rounded font-bold">HỦY</button>
+            <button id="confirm-delete" class="flex-1 bg-red-600 text-white py-2 rounded font-bold">XÁC NHẬN XÓA</button>
+        </div>
+    </div>
+</div>
+
         <script>
     // Hiện loading overlay NGAY LẬP TỨC, trước khi DOM render
     window.addEventListener('load', function() {
