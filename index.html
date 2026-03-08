@@ -23,24 +23,6 @@
         .warning-text { color: #ef4444; font-size: 0.75rem; font-weight: bold; }
         /* Hiệu ứng chuyển tab mượt hơn */
         nav button { transition: all 0.3s ease; }
-
-/* Đảm bảo main có khoảng cách với header fixed */
-main {
-    padding-top: 100px;      /* Khoảng cách cơ bản cho desktop */
-    padding-bottom: 90px;    /* Khoảng cách với bottom nav */
-}
-
-/* Chỉ áp dụng cho điện thoại (mobile) */
-@media (max-width: 768px) {
-    main {
-        padding-top: 120px;  /* Tăng lên để đẩy main xuống dưới header + an toàn với thanh địa chỉ browser */
-    }
-}
-
-/* Nếu muốn header có bóng nhẹ khi dính, thêm optional */
-header {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}        
         </style>
     </head>
     <body class="bg-gray-50 font-sans pb-20">
@@ -119,7 +101,7 @@ header {
                     <span class="text-[10px] uppercase">Cắt</span>
                 </button>
             </nav>
-            <main class="p-4 pt-6 md:pt-44 pb-24 md:pb-10 max-w-4xl mx-auto">
+            <main class="p-4 pt-44 pb-24 md:pb-10 max-w-4xl mx-auto max-md:pt-[90px]">
 <section id="inventory" class="tab-content active relative min-h-[70vh]">
 <!-- Spinner cục bộ (đặt ở giữa section) -->
 <div id="inventory-loading" class="hidden absolute inset-0 flex items-center justify-center backdrop-blur-sm z-10">
