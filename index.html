@@ -23,6 +23,24 @@
         .warning-text { color: #ef4444; font-size: 0.75rem; font-weight: bold; }
         /* Hiệu ứng chuyển tab mượt hơn */
         nav button { transition: all 0.3s ease; }
+
+/* Đảm bảo main có khoảng cách với header fixed */
+main {
+    padding-top: 100px;      /* Khoảng cách cơ bản cho desktop */
+    padding-bottom: 90px;    /* Khoảng cách với bottom nav */
+}
+
+/* Chỉ áp dụng cho điện thoại (mobile) */
+@media (max-width: 768px) {
+    main {
+        padding-top: 120px;  /* Tăng lên để đẩy main xuống dưới header + an toàn với thanh địa chỉ browser */
+    }
+}
+
+/* Nếu muốn header có bóng nhẹ khi dính, thêm optional */
+header {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}        
         </style>
     </head>
     <body class="bg-gray-50 font-sans pb-20">

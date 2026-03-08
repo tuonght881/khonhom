@@ -1,46 +1,46 @@
 // --- 1. FIREBASE SETUP ---
-            import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-            import { 
-            getFirestore, 
-            collection, 
-            addDoc, 
-            getDocs, 
-            doc, 
-            updateDoc, 
-            deleteDoc, 
-            setDoc, 
-            getDoc,
-            query,                // mới
-            where,                // mới
-            serverTimestamp       // mới (rất nên có)
-            } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import {
+    getFirestore,
+    collection,
+    addDoc,
+    getDocs,
+    doc,
+    updateDoc,
+    deleteDoc,
+    setDoc,
+    getDoc,
+    query,                // mới
+    where,                // mới
+    serverTimestamp       // mới (rất nên có)
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-            import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } 
-            from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut }
+    from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-            import { setPersistence, browserLocalPersistence, browserSessionPersistence } 
-            from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { setPersistence, browserLocalPersistence, browserSessionPersistence }
+    from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyCIkXopYV133e4FNUoJRYGc12FE3wg1y34",
-            authDomain: "ql-khonhom-5dccc.firebaseapp.com",
-            projectId: "ql-khonhom-5dccc",
-            storageBucket: "ql-khonhom-5dccc.firebasestorage.app",
-            messagingSenderId: "150168801606",
-            appId: "1:150168801606:web:a53e12f2afeeee0f07d547"
-        };
+const firebaseConfig = {
+    apiKey: "AIzaSyCIkXopYV133e4FNUoJRYGc12FE3wg1y34",
+    authDomain: "ql-khonhom-5dccc.firebaseapp.com",
+    projectId: "ql-khonhom-5dccc",
+    storageBucket: "ql-khonhom-5dccc.firebasestorage.app",
+    messagingSenderId: "150168801606",
+    appId: "1:150168801606:web:a53e12f2afeeee0f07d547"
+};
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        const MY_GMAIL = "frachlitzgaming78@gmail.com";
-        const stockCol = collection(db, "inventory");
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+const MY_GMAIL = "frachlitzgaming78@gmail.com";
+const stockCol = collection(db, "inventory");
 
-        // --- 2. BIẾN TOÀN CỤC ---
-        window.rawInventory = [];
-        let cutRequests = [];
-        let types = ["Nâu", "Trắng", "Nẹp"];
-        let currentManualGroupIdx = null;
+// --- 2. BIẾN TOÀN CỤC ---
+window.rawInventory = [];
+let cutRequests = [];
+let types = ["Nâu", "Trắng", "Nẹp"];
+let currentManualGroupIdx = null;
 
 // --- 3. LOGIC XÁC THỰC ---
 // Các biến DOM
@@ -72,7 +72,7 @@ function hideLoading() {
 // Init app với retry
 async function initAppWithRetry() {
     updateStatus('connecting');
-    
+
     try {
         await initAppData(); // syncTypes + loadInventory → sẽ dùng spinner cục bộ
         updateStatus('online');
@@ -121,23 +121,23 @@ document.getElementById('btn-login').onclick = async () => {
     showLoading('Đang đăng nhập Google...');
     const provider = new GoogleAuthProvider();
     const isRemember = document.getElementById('remember-me').checked;
-    
+
     provider.setCustomParameters({ prompt: 'select_account' });
-    
+
     try {
         await setPersistence(auth, isRemember ? browserLocalPersistence : browserSessionPersistence);
         const result = await signInWithPopup(auth, provider);
-        
+
         if (result.user.email === MY_GMAIL) {
             if (isRemember) {
                 localStorage.setItem('last_login_timestamp', Date.now().toString());
             }
-            
+
             // Buộc ẩn auth-screen và hiện app ngay sau login thành công
             authScreen.style.display = 'none';
             document.getElementById('app-main').classList.remove('hidden');
             logoutBtn.classList.remove('hidden');
-            
+
             // Gọi load data ngay lập tức (không chờ onAuthStateChanged)
             await initAppWithRetry();
         } else {
@@ -157,10 +157,10 @@ async function handleLogout() {
     try {
         // Xóa timestamp ghi nhớ
         localStorage.removeItem('last_login_timestamp');
-        
+
         // Đăng xuất Firebase Auth
         await signOut(auth);
-        
+
         // Reload trang để quay về trạng thái chưa login
         location.reload();
     } catch (error) {
@@ -190,25 +190,25 @@ async function initAppData() {
 }
 
 window.loadInventory = async () => {
-    
+
     const invLoading = document.getElementById('inventory-loading');
     const inventoryContent = document.getElementById('inventory-content');
     const stockList = document.getElementById('stock-list');
-    
-    stockList.innerHTML = ''; 
+
+    stockList.innerHTML = '';
     invLoading.classList.remove('hidden'); // Hiện spinner
     inventoryContent.classList.add('hidden'); // Ẩn nội dung tĩnh
-    
+
     try {
         const snapshot = await getDocs(stockCol);
-        window.rawInventory = snapshot.docs.map(d => ({ 
-            id: d.id, 
+        window.rawInventory = snapshot.docs.map(d => ({
+            id: d.id,
             ...d.data(),
-            createdAt: d.data().createdAt ? d.data().createdAt.toMillis() : 0 
+            createdAt: d.data().createdAt ? d.data().createdAt.toMillis() : 0
         }));
         renderInventory();
         updateStatus('online');
-        
+
         // Load xong → hiện nội dung, ẩn spinner
         inventoryContent.classList.remove('hidden');
         invLoading.classList.add('hidden');
@@ -218,47 +218,47 @@ window.loadInventory = async () => {
         stockList.innerHTML = '<p class="text-center text-red-500 py-10 col-span-full font-bold">Lỗi tải kho. Nhấn "THỬ LẠI" ở header.</p>';
         invLoading.classList.add('hidden');
         inventoryContent.classList.remove('hidden'); // Hiện để thấy thông báo lỗi
-    }finally {
-    invLoading.classList.add('hidden');
-    inventoryContent.classList.remove('hidden'); // Hiện nội dung sau khi load xong
-}
+    } finally {
+        invLoading.classList.add('hidden');
+        inventoryContent.classList.remove('hidden'); // Hiện nội dung sau khi load xong
+    }
 };
 
-        window.syncTypes = async () => {
-            const docRef = doc(db, "metadata", "aluminum_types");
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                types = docSnap.data().list;
-            } else {
-                await setDoc(docRef, { list: types });
-            }
-            updateTypeDropdowns();
-        };
+window.syncTypes = async () => {
+    const docRef = doc(db, "metadata", "aluminum_types");
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        types = docSnap.data().list;
+    } else {
+        await setDoc(docRef, { list: types });
+    }
+    updateTypeDropdowns();
+};
 
-        function updateTypeDropdowns() {
-            const html = types.map(t => `<option value="${t}">${t}</option>`).join('');
-            
-            // Đổ dữ liệu vào các ID mới trong HTML của bạn
-            const newSelect = document.getElementById('new-type-select');
-            if (newSelect) newSelect.innerHTML = html;
-            
-            const cutSelect = document.getElementById('cut-type');
-            if (cutSelect) cutSelect.innerHTML = html;
-            
-            const filterSelect = document.getElementById('filter-type');
-            if (filterSelect) filterSelect.innerHTML = `<option value="All">Tất cả loại</option>` + html;
-        }
+function updateTypeDropdowns() {
+    const html = types.map(t => `<option value="${t}">${t}</option>`).join('');
 
-        window.addNewTypePrompt = async () => {
-            const name = prompt("Nhập tên loại nhôm mới:");
-            if (name && !types.includes(name.trim())) {
-                types.push(name.trim());
-                await setDoc(doc(db, "metadata", "aluminum_types"), { list: types });
-                updateTypeDropdowns();
-                // Tự động chọn loại vừa thêm ở mục Nhập kho
-                document.getElementById('new-type-select').value = name.trim();
-            }
-        };
+    // Đổ dữ liệu vào các ID mới trong HTML của bạn
+    const newSelect = document.getElementById('new-type-select');
+    if (newSelect) newSelect.innerHTML = html;
+
+    const cutSelect = document.getElementById('cut-type');
+    if (cutSelect) cutSelect.innerHTML = html;
+
+    const filterSelect = document.getElementById('filter-type');
+    if (filterSelect) filterSelect.innerHTML = `<option value="All">Tất cả loại</option>` + html;
+}
+
+window.addNewTypePrompt = async () => {
+    const name = prompt("Nhập tên loại nhôm mới:");
+    if (name && !types.includes(name.trim())) {
+        types.push(name.trim());
+        await setDoc(doc(db, "metadata", "aluminum_types"), { list: types });
+        updateTypeDropdowns();
+        // Tự động chọn loại vừa thêm ở mục Nhập kho
+        document.getElementById('new-type-select').value = name.trim();
+    }
+};
 window.renderInventory = () => {
     const listDiv = document.getElementById('stock-list');
     const filter = document.getElementById('filter-type').value;
@@ -295,7 +295,7 @@ window.renderInventory = () => {
         return;
     }
 
-listDiv.innerHTML = Object.values(groups).map(g => `
+    listDiv.innerHTML = Object.values(groups).map(g => `
     <div class="bg-white p-3 rounded-xl border shadow-sm flex justify-between items-center">
         <div>
             <div class="font-bold text-slate-800 uppercase">${g.type}</div>
@@ -489,9 +489,9 @@ window.importStock = async () => {
     try {
         // Thêm qty document riêng lẻ
         for (let i = 0; i < qty; i++) {
-            await addDoc(collection(db, "inventory"), { 
-                type, 
-                length, 
+            await addDoc(collection(db, "inventory"), {
+                type,
+                length,
                 createdAt: serverTimestamp()  // Giữ để sort mới/cũ
             });
         }
@@ -740,9 +740,9 @@ window.executeGroupCut = async (sourceId, finalRem, btn) => {
         } else {
             // Id thật → update hoặc delete document thật
             const docRef = doc(db, "inventory", sourceId);
-            
+
             if (finalRem > 0) {
-                await updateDoc(docRef, { 
+                await updateDoc(docRef, {
                     length: finalRem,
                     updatedAt: serverTimestamp()  // Optional: thêm timestamp
                 });
@@ -756,10 +756,10 @@ window.executeGroupCut = async (sourceId, finalRem, btn) => {
         // Thành công: Làm mờ card, đổi text, reload kho
         btn.closest('.proposal-card').style.opacity = '0.4';
         btn.innerText = "Xong";
-        
+
         // Reload toàn bộ inventory để cập nhật UI
         await loadInventory();
-        
+
         // Optional: Xóa proposal khỏi danh sách sau khi cắt xong
         delete lastCalculatedProposals[sourceId];
         renderGroupedProposals(lastCalculatedProposals, flatReqsCache);
@@ -778,35 +778,35 @@ window.openManualModalForGroup = (sourceId) => {
     currentManualGroupIdx = sourceId;
     const p = lastCalculatedProposals[sourceId];
     const listUi = document.getElementById('manual-options');
-    
+
     const totalCutNeeded = p.cuts.reduce((a, b) => a + b, 0);
-    
+
     // Thu thập tất cả id đang dùng ở các proposal khác (loại trừ proposal hiện tại)
     const allUsedIds = Object.entries(lastCalculatedProposals)
         .filter(([key, prop]) => key !== currentManualGroupIdx && prop.sourceId !== sourceId)
         .map(([_, prop]) => prop.sourceId);
-    
+
     // Lấy tất cả cây phù hợp (bao gồm cây đang dùng, nhưng loại trừ id đang dùng ở proposal khác)
-    let options = window.rawInventory.filter(s => 
-        s.type === p.type && 
+    let options = window.rawInventory.filter(s =>
+        s.type === p.type &&
         s.length >= totalCutNeeded &&
         (s.id === sourceId || !allUsedIds.includes(s.id))  // Giữ cây đang dùng, loại cây dùng ở nơi khác
     );
-    
+
     // Sort: Ưu tiên remnant tốt, cây đang dùng lên đầu
     options.sort((a, b) => {
         const remA = a.length - totalCutNeeded;
         const remB = b.length - totalCutNeeded;
         const scoreA = isGoodRemnant(remA, 1) ? remA + 10000 : (isGoodRemnant(remA, 2) ? remA + 5000 : -remA);
         const scoreB = isGoodRemnant(remB, 1) ? remB + 10000 : (isGoodRemnant(remB, 2) ? remB + 5000 : -remB);
-        
+
         // Cây đang dùng ưu tiên cao nhất
         if (a.id === sourceId) return -1;
         if (b.id === sourceId) return 1;
-        
+
         return scoreB - scoreA;
     });
-    
+
     listUi.innerHTML = options.map(s => {
         const remnant = s.length - totalCutNeeded;
         const isGood = isGoodRemnant(remnant, 1);
@@ -815,7 +815,7 @@ window.openManualModalForGroup = (sourceId) => {
         const isCurrent = s.id === sourceId;
         const bgClass = isCurrent ? 'bg-blue-50 border-blue-300' : 'hover:bg-blue-50';
         const label = isCurrent ? '(Đang dùng)' : '';
-        
+
         return `
             <div onclick="selectManualSource('${s.id}', ${s.length})" 
                  class="p-3 border rounded-lg cursor-pointer ${bgClass} flex justify-between items-center">
@@ -827,13 +827,13 @@ window.openManualModalForGroup = (sourceId) => {
             </div>
         `;
     }).join('');
-    
+
     if (options.length === 0) {
         listUi.innerHTML = "<p class='text-center text-gray-400 py-4'>Không có cây nào đủ dài để thay thế.</p>";
     } else if (options.length === 1 && options[0].id === sourceId) {
         listUi.innerHTML += "<p class='text-center text-gray-400 mt-2'>Không có cây khác phù hợp để thay thế.</p>";
     }
-    
+
     document.getElementById('manual-modal').classList.remove('hidden');
 };
 
@@ -842,11 +842,11 @@ window.selectManualSource = (newId, newLen) => {
     const totalCutNeeded = p.cuts.reduce((a, b) => a + b, 0);
     const newRem = newLen - totalCutNeeded;
     const isBad = !isGoodRemnant(newRem, 1);
-    
+
     if (isBad && !confirm(`Dư mới ${newRem}cm không tốt (có thể <120 hoặc lẻ hàng chục). Vẫn đổi cây?`)) {
         return;
     }
-    
+
     // Cập nhật proposal
     p.sourceId = newId;
     p.initialLen = newLen;
@@ -861,20 +861,20 @@ window.selectManualSource = (newId, newLen) => {
 
 window.closeManualModal = () => document.getElementById('manual-modal').classList.add('hidden');
 
-        // --- 8. UI NAVIGATION ---
+// --- 8. UI NAVIGATION ---
 window.showTab = (tabId) => {
     // Ẩn tất cả tab
     document.querySelectorAll('.tab-content').forEach(el => {
         el.classList.remove('active');
         el.style.display = 'none';
     });
-    
+
     const activeTab = document.getElementById(tabId);
     if (activeTab) {
         activeTab.classList.add('active');
         activeTab.style.display = 'block';
     }
-    
+
     // Update nav button
     document.querySelectorAll('#main-nav button').forEach(btn => {
         btn.classList.remove('border-b-2', 'border-blue-600', 'text-blue-600');
@@ -893,7 +893,7 @@ window.showTab = (tabId) => {
         const invLoading = document.getElementById('inventory-loading');
         const inventoryContent = document.getElementById('inventory-content');
         const stockList = document.getElementById('stock-list');
-        
+
         stockList.innerHTML = ''; // Xóa nội dung cũ ngay
         invLoading.classList.remove('hidden'); // Spinner hiện ngay
         inventoryContent.classList.add('hidden'); // Ẩn search/combo/stock-list
@@ -959,7 +959,7 @@ window.addEventListener('scroll', () => {
             mainNav.style.transform = 'translateY(100%)';
         } else {
             // Ẩn Nav lên phía sau Header
-            mainNav.style.transform = 'translateY(-200%)'; 
+            mainNav.style.transform = 'translateY(-200%)';
         }
     } else {
         // ĐANG CUỘN LÊN -> HIỆN
@@ -983,12 +983,12 @@ backToTop.addEventListener('click', () => {
 });
 // Live search: Khi nhập/xóa trong ô tìm kiếm → render lại toàn bộ danh sách
 let debounceTimer;
-document.getElementById('search-length').addEventListener('input', function(e) {
+document.getElementById('search-length').addEventListener('input', function (e) {
     clearTimeout(debounceTimer);
-    
+
     const searchValue = e.target.value.trim();
     const clearBtn = document.getElementById('clear-search');
-    
+
     if (searchValue !== "") {
         clearBtn.classList.remove('hidden');
     } else {
@@ -1043,7 +1043,7 @@ function initSortable() {
 }
 
 // Xử lý click cho nút SỬA / XÓA trong kho
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
     if (e.target.classList.contains('edit-group-btn')) {
         const btn = e.target;
         openEditModal(
@@ -1066,3 +1066,25 @@ document.addEventListener('click', function(e) {
         return;
     }
 });
+
+function adjustMainPadding() {
+    const header = document.querySelector('header'); // thay bằng selector header của bạn nếu khác
+    const mainElement = document.querySelector('main');
+
+    if (header && mainElement) {
+        const headerHeight = header.offsetHeight;
+        // Trên mobile tăng thêm 30-40px cho khoảng trắng + thanh địa chỉ
+        const extra = window.innerWidth <= 768 ? 40 : 20;
+        mainElement.style.paddingTop = `${headerHeight + extra}px`;
+    }
+}
+
+// Chạy khi load trang
+window.addEventListener('load', adjustMainPadding);
+// Chạy lại khi thay đổi kích thước màn hình (xoay ngang/dọc)
+window.addEventListener('resize', adjustMainPadding);
+// Nếu bạn có hàm showTab, gọi lại ở đó:
+function showTab(tabId) {
+    // ... code hiện tại của bạn
+    adjustMainPadding();
+}
