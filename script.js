@@ -72,54 +72,47 @@ function hideLoading() {
 // Init app với retry
 async function initAppWithRetry() {
     updateStatus('connecting');
-    showLoading('Đang tải dữ liệu kho...');
     
     try {
-        await initAppData(); // syncTypes + loadInventory
+        await initAppData(); // syncTypes + loadInventory → sẽ dùng spinner cục bộ
         updateStatus('online');
         retryBtn.classList.add('hidden');
     } catch (e) {
         console.error("Lỗi load dữ liệu:", e);
         updateStatus('failed', "Tải dữ liệu thất bại");
         retryBtn.classList.remove('hidden');
-    } finally {
-        hideLoading();
     }
 }
 
 // Firebase Auth listener
 // Trong onAuthStateChanged
 onAuthStateChanged(auth, async (user) => {
-    // Loading đã hiện từ đầu (từ script inline)
-    loadingOverlay.querySelector('p').innerText = 'Đang xác thực phiên...';
-
     const appMain = document.getElementById('app-main');
 
     if (user && user.email === MY_GMAIL) {
         // Kiểm tra 15 ngày (giữ nguyên)
-        const loginDate = localStorage.getItem('last_login_timestamp');
-        if (loginDate) {
-            const fifteenDays = 15 * 24 * 60 * 60 * 1000;
-            if (Date.now() - parseInt(loginDate) > fifteenDays) {
-                alert("Phiên đăng nhập đã hết hạn (15 ngày). Vui lòng đăng nhập lại!");
-                handleLogout();
-                return;
-            }
-        }
 
-        // Đã login → hiện app chính, ẩn auth
         authScreen.style.display = 'none';
-        appMain.classList.remove('hidden');  // Hiện toàn bộ kho/nav/header
+        appMain.classList.remove('hidden');
         logoutBtn.classList.remove('hidden');
+        if (document.getElementById('inventory').classList.contains('active')) {
+            // Nếu tab Kho đang active, hiện spinner sớm
+            const invLoading = document.getElementById('inventory-loading');
+            invLoading.classList.remove('hidden');
+        }
+        // Ẩn global overlay NGAY LẬP TỨC (không cần text "Đang xác thực phiên...")
+        hideLoading();
 
-        await initAppWithRetry();  // Load types + inventory
+        // Load kho (sẽ dùng spinner cục bộ)
+        if (window.rawInventory.length === 0) {
+            await initAppWithRetry();
+        }
     } else {
-        // Chưa login → hiện auth-screen, ẩn app chính
-        authScreen.style.display = 'flex';  // Hiện màn đăng nhập
-        appMain.classList.add('hidden');    // Ẩn kho
+        authScreen.style.display = 'flex';
+        appMain.classList.add('hidden');
         logoutBtn.classList.add('hidden');
         updateStatus('online');
-        hideLoading();  // Ẩn loading, để thấy rõ màn đăng nhập
+        hideLoading();
     }
 });
 
@@ -135,10 +128,24 @@ document.getElementById('btn-login').onclick = async () => {
         await setPersistence(auth, isRemember ? browserLocalPersistence : browserSessionPersistence);
         const result = await signInWithPopup(auth, provider);
         
-        if (result.user.email === MY_GMAIL && isRemember) {
-            localStorage.setItem('last_login_timestamp', Date.now().toString());
+        if (result.user.email === MY_GMAIL) {
+            if (isRemember) {
+                localStorage.setItem('last_login_timestamp', Date.now().toString());
+            }
+            
+            // Buộc ẩn auth-screen và hiện app ngay sau login thành công
+            authScreen.style.display = 'none';
+            document.getElementById('app-main').classList.remove('hidden');
+            logoutBtn.classList.remove('hidden');
+            
+            // Gọi load data ngay lập tức (không chờ onAuthStateChanged)
+            await initAppWithRetry();
+        } else {
+            alert("Tài khoản không có quyền!");
+            await signOut(auth);
         }
     } catch (e) {
+        console.error("Lỗi đăng nhập:", e);
         alert("Lỗi đăng nhập: " + e.message);
     } finally {
         hideLoading();
@@ -183,12 +190,14 @@ async function initAppData() {
 }
 
 window.loadInventory = async () => {
-    updateStatus('connecting'); // Đổi trạng thái khi load
-    const listDiv = document.getElementById('stock-list');
-    const invLoading = document.getElementById('inventory-loading');
     
-    listDiv.innerHTML = ''; // Xóa cũ
+    const invLoading = document.getElementById('inventory-loading');
+    const inventoryContent = document.getElementById('inventory-content');
+    const stockList = document.getElementById('stock-list');
+    
+    stockList.innerHTML = ''; 
     invLoading.classList.remove('hidden'); // Hiện spinner
+    inventoryContent.classList.add('hidden'); // Ẩn nội dung tĩnh
     
     try {
         const snapshot = await getDocs(stockCol);
@@ -199,13 +208,20 @@ window.loadInventory = async () => {
         }));
         renderInventory();
         updateStatus('online');
+        
+        // Load xong → hiện nội dung, ẩn spinner
+        inventoryContent.classList.remove('hidden');
+        invLoading.classList.add('hidden');
     } catch (e) {
         console.error("Lỗi load kho:", e);
-        updateStatus('failed');
-        listDiv.innerHTML = '<p class="text-center text-red-500 py-10 col-span-full font-bold">Lỗi tải kho. Nhấn "THỬ LẠI" ở header.</p>';
-    } finally {
+        updateStatus('failed', 'Tải kho thất bại');
+        stockList.innerHTML = '<p class="text-center text-red-500 py-10 col-span-full font-bold">Lỗi tải kho. Nhấn "THỬ LẠI" ở header.</p>';
         invLoading.classList.add('hidden');
-    }
+        inventoryContent.classList.remove('hidden'); // Hiện để thấy thông báo lỗi
+    }finally {
+    invLoading.classList.add('hidden');
+    inventoryContent.classList.remove('hidden'); // Hiện nội dung sau khi load xong
+}
 };
 
         window.syncTypes = async () => {
@@ -697,34 +713,46 @@ window.selectManualSource = (newId, newLen) => {
 window.closeManualModal = () => document.getElementById('manual-modal').classList.add('hidden');
 
         // --- 8. UI NAVIGATION ---
-        window.showTab = (tabId) => {
-            // 1. Ẩn tất cả các tab
-            document.querySelectorAll('.tab-content').forEach(el => {
-                el.classList.remove('active');
-                el.style.display = 'none'; // Đảm bảo ẩn hẳn
-            });
-            
-            // 2. Hiện tab được chọn
-            const activeTab = document.getElementById(tabId);
-            if (activeTab) {
-                activeTab.classList.add('active');
-                activeTab.style.display = 'block'; // Hiện tab lên
-            }
-            
-            // 3. Cập nhật màu sắc nút bấm trên Nav
-            document.querySelectorAll('#main-nav button').forEach(btn => {
-                btn.classList.remove('border-b-2', 'border-blue-600', 'text-blue-600');
-                btn.classList.add('text-gray-500');
-            });
-            const activeBtn = document.getElementById('nav-' + tabId);
-            if (activeBtn) {
-                activeBtn.classList.add('border-b-2', 'border-blue-600', 'text-blue-600');
-                activeBtn.classList.remove('text-gray-500');
-            }
+window.showTab = (tabId) => {
+    // Ẩn tất cả tab
+    document.querySelectorAll('.tab-content').forEach(el => {
+        el.classList.remove('active');
+        el.style.display = 'none';
+    });
+    
+    const activeTab = document.getElementById(tabId);
+    if (activeTab) {
+        activeTab.classList.add('active');
+        activeTab.style.display = 'block';
+    }
+    
+    // Update nav button
+    document.querySelectorAll('#main-nav button').forEach(btn => {
+        btn.classList.remove('border-b-2', 'border-blue-600', 'text-blue-600');
+        btn.classList.add('text-gray-500');
+    });
+    const activeBtn = document.getElementById('nav-' + tabId);
+    if (activeBtn) {
+        activeBtn.classList.add('border-b-2', 'border-blue-600', 'text-blue-600');
+        activeBtn.classList.remove('text-gray-500');
+    }
 
-            // Load lại dữ liệu nếu vào tab Kho
-            if (tabId === 'inventory') loadInventory();
-        };
+    if (tabId === 'inventory') {
+        updateStatus('connecting');
+
+        // Hiện spinner cục bộ NGAY LẬP TỨC khi vào tab (không chờ getDocs)
+        const invLoading = document.getElementById('inventory-loading');
+        const inventoryContent = document.getElementById('inventory-content');
+        const stockList = document.getElementById('stock-list');
+        
+        stockList.innerHTML = ''; // Xóa nội dung cũ ngay
+        invLoading.classList.remove('hidden'); // Spinner hiện ngay
+        inventoryContent.classList.add('hidden'); // Ẩn search/combo/stock-list
+
+        // Sau đó mới load dữ liệu (spinner đã hiện rồi)
+        loadInventory();
+    }
+};
 
 // --- 9. CONNECTION CHECK & STATUS UTILITY ---
 // Hàm updateStatus duy nhất, hỗ trợ tất cả trạng thái

@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quản Lý Kho Nhôm - Trung Tường 2</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-    <style>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Quản Lý Kho Nhôm - Trung Tường 2</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+        <style>
             /* Ẩn nút mũi tên lên xuống của input number trên Chrome, Safari, Edge, Opera */
     input::-webkit-outer-spin-button,
     input::-webkit-inner-spin-button {
@@ -23,156 +23,193 @@
         .warning-text { color: #ef4444; font-size: 0.75rem; font-weight: bold; }
         /* Hiệu ứng chuyển tab mượt hơn */
         nav button { transition: all 0.3s ease; }
-    </style>
-</head>
-<body class="bg-gray-50 font-sans pb-20">
-
-    <div id="auth-screen" class="fixed inset-0 bg-slate-900 z-[100] flex flex-col items-center justify-center text-white p-6 hidden" style="display: none !important;">
-        <div class="bg-white p-8 rounded-2xl shadow-2xl text-center w-full max-w-sm">
-            <h2 class="text-2xl font-black text-slate-800 mb-2 italic">TIỆM MÀN<br>TRUNG TƯỜNG 2</h2>
-            <p class="text-gray-500 mb-8 text-sm uppercase tracking-widest font-bold">Hệ thống kho nội bộ</p>
-            <button id="btn-login" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-6 rounded-xl shadow-lg flex items-center justify-center gap-3 active:scale-95 transition-all">
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20">
-                ĐĂNG NHẬP GOOGLE
-            </button>
-            <div class="mt-4 flex items-center justify-center gap-2">
-                <input type="checkbox" id="remember-me" class="w-4 h-4 cursor-pointer">
-                <label for="remember-me" class="text-gray-600 text-sm cursor-pointer font-medium">Ghi nhớ đăng nhập</label>
+        </style>
+    </head>
+    <body class="bg-gray-50 font-sans pb-20">
+        <div id="auth-screen" class="fixed inset-0 bg-slate-900 z-[100] flex flex-col items-center justify-center text-white p-6 hidden" style="display: none !important;">
+            <div class="bg-white p-8 rounded-2xl shadow-2xl text-center w-full max-w-sm">
+                <h2 class="text-2xl font-black text-slate-800 mb-2 italic">
+                    TIỆM MÀN
+                    <br>
+                    TRUNG TƯỜNG 2
+                </h2>
+                <p class="text-gray-500 mb-8 text-sm uppercase tracking-widest font-bold">Hệ thống kho nội bộ</p>
+                <button id="btn-login" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-6 rounded-xl shadow-lg flex items-center justify-center gap-3 active:scale-95 transition-all">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20">
+                    ĐĂNG NHẬP GOOGLE
+                </button>
+                <div class="mt-4 flex items-center justify-center gap-2">
+                    <input type="checkbox" id="remember-me" class="w-4 h-4 cursor-pointer">
+                    <label for="remember-me" class="text-gray-600 text-sm cursor-pointer font-medium">Ghi nhớ đăng nhập</label>
+                </div>
             </div>
         </div>
-    </div>
-
-    <!-- Loading overlay toàn màn hình (cho auth và load data) -->
-    <div id="loading-overlay" class="fixed inset-0 bg-white/90 z-[110] flex items-center justify-center hidden">
-        <div class="flex flex-col items-center gap-4">
-            <svg class="animate-spin h-12 w-12 text-blue-500" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-            </svg>
-            <p class="text-gray-600 font-bold text-lg">Đang kiểm tra đăng nhập...</p>
+        <!-- Loading overlay toàn màn hình (cho auth và load data) -->
+        <div id="loading-overlay" class="fixed inset-0 bg-white/90 z-[110] flex items-center justify-center hidden">
+            <div class="flex flex-col items-center gap-4">
+                <svg class="animate-spin h-12 w-12 text-blue-500" viewBox="0 0 24 24">
+                    <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                    />
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                </svg>
+                <p class="text-gray-600 font-bold text-lg">Đang kiểm tra đăng nhập...</p>
+            </div>
         </div>
-    </div>
-<div id="app-main" class="hidden">
-    <!-- Trong #stock-list (section inventory), thêm spinner riêng cho load kho -->
-    <!-- Bạn có thể thêm trực tiếp vào #stock-list.innerHTML khi loading, nhưng để đơn giản, thêm div con -->
-    <div id="inventory-loading" class="hidden text-center py-10 col-span-full">
-        <svg class="animate-spin h-8 w-8 text-blue-500 mx-auto mb-2" viewBox="0 0 24 24">
-            <!-- Giống svg trên, nhưng nhỏ hơn -->
+        <div id="app-main" class="hidden">
+            <header class="bg-gray-100 border-b border-gray-300 p-4 shadow-sm fixed top-0 left-0 right-0 z-[70] min-h-[64px] grid grid-cols-3 items-center">
+                <div class="text-left">
+                    <h1 class="text-xs font-black text-slate-700 tracking-tighter uppercase leading-tight">Kho Nhôm</h1>
+                </div>
+                <div class="text-center">
+                    <h2 class="text-base font-black tracking-wide text-red-600 uppercase italic">TRUNG TƯỜNG 2</h2>
+                </div>
+                <div class="text-right flex flex-col items-end gap-1">
+                    <span id="connection-status" class="text-[9px] bg-yellow-500 text-white px-3 py-1 rounded-full font-bold uppercase shadow-sm">Kết nối...</span>
+                    <button id="btn-logout" class="hidden text-[10px] bg-gray-200 text-gray-600 px-2 py-1 rounded font-bold hover:bg-red-100 hover:text-red-600">ĐĂNG XUẤT</button>
+                </div>
+            </header>
+            <button id="back-to-top" class="fixed bottom-24 right-4 bg-blue-600 text-white p-3 rounded-full shadow-lg hidden transition-all hover:bg-blue-700 z-40">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M5 10l7-7m0 0l7 7m-7-7v18"
+                    />
+                </svg>
+            </button>
+            <nav id="main-nav" class="fixed bottom-0 left-0 right-0 md:bottom-auto md:top-[80px] bg-white border-t md:border-t-0 md:border-b border-gray-200 flex justify-around p-2 shadow-lg md:shadow-md z-[60] transition-transform duration-300">
+                <button id="nav-inventory" onclick="showTab('inventory')" class="flex-1 py-2 text-blue-600 border-b-2 border-blue-600 font-bold flex flex-col items-center">
+                    <span class="text-[10px] uppercase">Kho</span>
+                </button>
+                <button id="nav-entry" onclick="showTab('entry')" class="flex-1 py-2 text-gray-500 font-bold flex flex-col items-center">
+                    <span class="text-[10px] uppercase">Nhập</span>
+                </button>
+                <button id="nav-cutting" onclick="showTab('cutting')" class="flex-1 py-2 text-gray-500 font-bold flex flex-col items-center">
+                    <span class="text-[10px] uppercase">Cắt</span>
+                </button>
+            </nav>
+            <main class="p-4 pt-6 md:pt-44 pb-24 md:pb-10 max-w-4xl mx-auto">
+<section id="inventory" class="tab-content active relative min-h-[70vh]">
+<!-- Spinner cục bộ (đặt ở giữa section) -->
+<div id="inventory-loading" class="hidden absolute inset-0 flex items-center justify-center backdrop-blur-sm z-10">
+    <div class="flex flex-col items-center justify-center gap-4 text-center px-4">
+        <svg class="animate-spin h-12 w-12 text-blue-500" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
         </svg>
-        <p class="text-gray-500 font-bold">Đang tải kho...</p>
+        <p class="text-gray-700 font-bold text-xl">Đang tải kho...</p>
     </div>
-
-    <header class="bg-gray-100 border-b border-gray-300 p-4 shadow-sm fixed top-0 left-0 right-0 z-[70] min-h-[64px] grid grid-cols-3 items-center">
-        <div class="text-left">
-            <h1 class="text-xs font-black text-slate-700 tracking-tighter uppercase leading-tight">Kho Nhôm</h1>
-        </div>
-        <div class="text-center">
-            <h2 class="text-base font-black tracking-wide text-red-600 uppercase italic">TRUNG TƯỜNG 2</h2>
-        </div>
-        <div class="text-right flex flex-col items-end gap-1">
-            <span id="connection-status" class="text-[9px] bg-yellow-500 text-white px-3 py-1 rounded-full font-bold uppercase shadow-sm">Kết nối...</span>
-            <button id="btn-logout" class="hidden text-[10px] bg-gray-200 text-gray-600 px-2 py-1 rounded font-bold hover:bg-red-100 hover:text-red-600">ĐĂNG XUẤT</button>
-        </div>
-    </header>
-
-    <button id="back-to-top" class="fixed bottom-24 right-4 bg-blue-600 text-white p-3 rounded-full shadow-lg hidden transition-all hover:bg-blue-700 z-40">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-        </svg>
-    </button>
-
-    <nav id="main-nav" class="fixed bottom-0 left-0 right-0 md:bottom-auto md:top-[80px] bg-white border-t md:border-t-0 md:border-b border-gray-200 flex justify-around p-2 shadow-lg md:shadow-md z-[60] transition-transform duration-300">
-        <button id="nav-inventory" onclick="showTab('inventory')" class="flex-1 py-2 text-blue-600 border-b-2 border-blue-600 font-bold flex flex-col items-center">
-            <span class="text-[10px] uppercase">Kho</span>
-        </button>
-        <button id="nav-entry" onclick="showTab('entry')" class="flex-1 py-2 text-gray-500 font-bold flex flex-col items-center">
-            <span class="text-[10px] uppercase">Nhập</span>
-        </button>
-        <button id="nav-cutting" onclick="showTab('cutting')" class="flex-1 py-2 text-gray-500 font-bold flex flex-col items-center">
-            <span class="text-[10px] uppercase">Cắt</span>
-        </button>
-    </nav>
-
-    <main class="p-4 pt-6 md:pt-44 pb-24 md:pb-10 max-w-4xl mx-auto">
-        
-<section id="inventory" class="tab-content active">
-    <div class="mb-4 bg-gray-50 pt-2 flex flex-col md:flex-row gap-2 items-center">
-        
-        <div class="relative w-full md:flex-[2]">
-            <input type="number" id="search-length" placeholder="Tìm kích thước..." 
-                class="w-full p-3 pl-10 pr-10 border-2 border-blue-200 rounded-xl focus:border-blue-500 outline-none font-bold text-base shadow-sm h-[52px]">
-            <div class="absolute left-3 top-3.5 text-gray-400">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-            </div>
-            <button id="clear-search" class="absolute right-3 top-3.5 text-gray-400 hidden">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
-        </div>
-
-        <div class="flex w-full md:w-auto md:flex-[2] gap-2">
-            <select id="filter-type" onchange="renderInventory()" 
-                class="border-2 border-gray-200 p-2 rounded-xl text-sm flex-1 bg-white h-[52px] font-bold text-gray-700 outline-none focus:border-blue-500">
-            </select>
-
-            <select id="sort-order" onchange="renderInventory()" 
-                class="border-2 border-gray-200 p-2 rounded-xl text-sm flex-1 bg-white h-[52px] font-bold text-gray-700 outline-none focus:border-blue-500">
-                <option value="desc">Dài ↓</option>
-                <option value="asc">Ngắn ↑</option>
-            </select>
-        </div>
-    </div>
-
-    <div id="stock-list" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm"></div>
-</section>
-
-        <section id="entry" class="tab-content">
-            <div class="bg-white p-5 rounded-xl shadow-sm border">
-                <h2 class="font-bold mb-4 text-gray-700">Cấu hình nhập kho</h2>
-                <div class="mb-4">
-                    <label class="block text-xs font-bold text-gray-500 mb-1 italic">LOẠI NHÔM:</label>
-                    <div class="flex gap-2">
-                        <select id="new-type-select" class="border p-2 rounded flex-1 bg-white"></select>
-                        <button onclick="addNewTypePrompt()" class="bg-gray-200 px-4 rounded-lg text-xl font-bold">+</button>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-4 mb-6">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">ĐỘ DÀI (cm):</label>
-                        <input type="number" id="new-original-len" value="600" class="w-full border p-2 rounded-lg font-bold text-blue-600">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 mb-1">SỐ LƯỢNG:</label>
-                        <input type="number" id="new-qty" value="1" class="w-full border p-2 rounded-lg font-bold">
-                    </div>
-                </div>
-                <button onclick="importStock()" id="btn-import" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg active:scale-95 transition">XÁC NHẬN NHẬP KHO</button>
-            </div>
-        </section>
-
-        <section id="cutting" class="tab-content">
-            <div class="bg-white p-5 rounded-xl shadow-sm border mb-4">
-                <h2 class="font-bold mb-4">Lập danh sách cắt</h2>
-                <div class="grid grid-cols-12 gap-2 mb-4">
-                    <select id="cut-type" class="col-span-4 border p-2 rounded text-sm bg-white"></select>
-                    <input type="number" id="cut-length" placeholder="Dài (cm)" class="col-span-4 border p-2 rounded text-sm font-bold">
-                    <input type="number" id="cut-qty" placeholder="SL" value="1" class="col-span-2 border p-2 rounded text-center font-bold">
-                    <button onclick="addRequestToList()" class="col-span-2 bg-orange-500 text-white rounded font-bold hover:bg-orange-600">+</button>
-                </div>
-                <div id="request-display" class="mb-4 space-y-2"></div>
-                <button onclick="processSmartCut()" class="w-full bg-slate-800 text-white py-4 rounded-xl font-bold shadow-md active:bg-black">TÌM PHƯƠNG ÁN TỐI ƯU</button>
-            </div>
-            <div id="cut-proposals" class="space-y-4"></div>
-        </section>
 </div>
-    </main>
 
-<script>
+    <!-- Wrapper cho nội dung tĩnh: Ẩn ban đầu -->
+    <div id="inventory-content" class="hidden">
+        <div class="mb-4 bg-gray-50 pt-2 flex flex-col md:flex-row gap-2 items-center">
+            <div class="relative w-full md:flex-[2]">
+                <input type="number" id="search-length" placeholder="Tìm kích thước..." 
+                    class="w-full p-3 pl-10 pr-10 border-2 border-blue-200 rounded-xl focus:border-blue-500 outline-none font-bold text-base shadow-sm h-[52px]">
+                <div class="absolute left-3 top-3.5 text-gray-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+                <button id="clear-search" class="absolute right-3 top-3.5 text-gray-400 hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="flex w-full md:w-auto md:flex-[2] gap-2">
+                <select id="filter-type" onchange="renderInventory()" 
+                    class="border-2 border-gray-200 p-2 rounded-xl text-sm flex-1 bg-white h-[52px] font-bold text-gray-700 outline-none focus:border-blue-500">
+                </select>
+
+                <select id="sort-order" onchange="renderInventory()" 
+                    class="border-2 border-gray-200 p-2 rounded-xl text-sm flex-1 bg-white h-[52px] font-bold text-gray-700 outline-none focus:border-blue-500">
+                    <option value="desc">Dài ↓</option>
+                    <option value="asc">Ngắn ↑</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="stock-list" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm"></div>
+    </div>
+</section>
+                <section id="entry" class="tab-content">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border">
+                        <h2 class="font-bold mb-4 text-gray-700">Cấu hình nhập kho</h2>
+                        <div class="mb-4">
+                            <label class="block text-xs font-bold text-gray-500 mb-1 italic">LOẠI NHÔM:</label>
+                            <div class="flex gap-2">
+                                <select id="new-type-select" class="border p-2 rounded flex-1 bg-white"></select>
+                                <button onclick="addNewTypePrompt()" class="bg-gray-200 px-4 rounded-lg text-xl font-bold">+</button>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">ĐỘ DÀI (cm):</label>
+                                <input
+                                    type="number"
+                                    id="new-original-len"
+                                    value="600"
+                                    class="w-full border p-2 rounded-lg font-bold text-blue-600"
+                                >
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">SỐ LƯỢNG:</label>
+                                <input
+                                    type="number"
+                                    id="new-qty"
+                                    value="1"
+                                    class="w-full border p-2 rounded-lg font-bold"
+                                >
+                            </div>
+                        </div>
+                        <button onclick="importStock()" id="btn-import" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg active:scale-95 transition">XÁC NHẬN NHẬP KHO</button>
+                    </div>
+                </section>
+                <section id="cutting" class="tab-content">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border mb-4">
+                        <h2 class="font-bold mb-4">Lập danh sách cắt</h2>
+                        <div class="grid grid-cols-12 gap-2 mb-4">
+                            <select id="cut-type" class="col-span-4 border p-2 rounded text-sm bg-white"></select>
+                            <input
+                                type="number"
+                                id="cut-length"
+                                placeholder="Dài (cm)"
+                                class="col-span-4 border p-2 rounded text-sm font-bold"
+                            >
+                            <input
+                                type="number"
+                                id="cut-qty"
+                                placeholder="SL"
+                                value="1"
+                                class="col-span-2 border p-2 rounded text-center font-bold"
+                            >
+                            <button onclick="addRequestToList()" class="col-span-2 bg-orange-500 text-white rounded font-bold hover:bg-orange-600">+</button>
+                        </div>
+                        <div id="request-display" class="mb-4 space-y-2"></div>
+                        <button onclick="processSmartCut()" class="w-full bg-slate-800 text-white py-4 rounded-xl font-bold shadow-md active:bg-black">TÌM PHƯƠNG ÁN TỐI ƯU</button>
+                    </div>
+                    <div id="cut-proposals" class="space-y-4"></div>
+                </section>
+            </main>
+        </div>
+    </div>
+        <script>
     // Hiện loading overlay NGAY LẬP TỨC, trước khi DOM render
     window.addEventListener('load', function() {
         const overlay = document.getElementById('loading-overlay');
@@ -186,13 +223,13 @@
         const overlay = document.getElementById('loading-overlay');
         if (overlay) overlay.classList.remove('hidden');
     })();
-</script>
-    <script>
+        </script>
+        <script>
     // Hiện loading ngay khi trang bắt đầu load (trước khi Firebase init)
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('loading-overlay').classList.remove('hidden');
     });
-    </script>
-    <script src="/script.js" type="module"></script>
-</body>
+        </script>
+        <script src="/script.js" type="module"></script>
+    </body>
 </html>
