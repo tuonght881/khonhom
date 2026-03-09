@@ -777,63 +777,83 @@ window.executeGroupCut = async (sourceId, finalRem, btn) => {
 window.openManualModalForGroup = (sourceId) => {
     currentManualGroupIdx = sourceId;
     const p = lastCalculatedProposals[sourceId];
-    const listUi = document.getElementById('manual-options');
-    
     const totalCutNeeded = p.cuts.reduce((a, b) => a + b, 0);
-    
-    // Thu thập tất cả id đang dùng ở các proposal khác (loại trừ proposal hiện tại)
+
+    // Lấy tất cả id đang dùng ở proposal khác (loại trừ hiện tại)
     const allUsedIds = Object.entries(lastCalculatedProposals)
-        .filter(([key, prop]) => key !== currentManualGroupIdx && prop.sourceId !== sourceId)
+        .filter(([key]) => key !== currentManualGroupIdx)
         .map(([_, prop]) => prop.sourceId);
-    
-    // Lấy tất cả cây phù hợp (bao gồm cây đang dùng, nhưng loại trừ id đang dùng ở proposal khác)
-    let options = window.rawInventory.filter(s => 
-        s.type === p.type && 
+
+    // Lấy cây phù hợp (cùng type, đủ dài, không dùng ở proposal khác)
+    let availableTrees = window.rawInventory.filter(s =>
+        s.type === p.type &&
         s.length >= totalCutNeeded &&
-        (s.id === sourceId || !allUsedIds.includes(s.id))  // Giữ cây đang dùng, loại cây dùng ở nơi khác
+        (s.id === sourceId || !allUsedIds.includes(s.id))
     );
-    
-    // Sort: Ưu tiên remnant tốt, cây đang dùng lên đầu
-    options.sort((a, b) => {
-        const remA = a.length - totalCutNeeded;
-        const remB = b.length - totalCutNeeded;
-        const scoreA = isGoodRemnant(remA, 1) ? remA + 10000 : (isGoodRemnant(remA, 2) ? remA + 5000 : -remA);
-        const scoreB = isGoodRemnant(remB, 1) ? remB + 10000 : (isGoodRemnant(remB, 2) ? remB + 5000 : -remB);
-        
-        // Cây đang dùng ưu tiên cao nhất
-        if (a.id === sourceId) return -1;
-        if (b.id === sourceId) return 1;
-        
-        return scoreB - scoreA;
+
+    // Nhóm lại theo length (giống renderInventory)
+    let groups = {};
+    availableTrees.forEach(tree => {
+        const key = tree.length;  // nhóm theo length (cùng type đã lọc rồi)
+        if (!groups[key]) {
+            groups[key] = {
+                length: tree.length,
+                qty: 0,
+                ids: [],
+                bestTreeId: tree.id,  // tạm lưu id cây cũ nhất (sẽ sort sau)
+                remnant: tree.length - totalCutNeeded
+            };
+        }
+        groups[key].qty++;
+        groups[key].ids.push(tree.id);
     });
-    
-    listUi.innerHTML = options.map(s => {
-        const remnant = s.length - totalCutNeeded;
-        const isGood = isGoodRemnant(remnant, 1);
-        const isOk = isGoodRemnant(remnant, 2);
-        const status = isGood ? '✅ Tốt' : (isOk ? '🆗 Chấp nhận' : '⚠ Xấu');
-        const isCurrent = s.id === sourceId;
-        const bgClass = isCurrent ? 'bg-blue-50 border-blue-300' : 'hover:bg-blue-50';
-        const label = isCurrent ? '(Đang dùng)' : '';
-        
-        return `
-            <div onclick="selectManualSource('${s.id}', ${s.length})" 
-                 class="p-3 border rounded-lg cursor-pointer ${bgClass} flex justify-between items-center">
-                <div>
-                    <div class="font-bold">${s.type} - Dài ${s.length}cm ${label}</div>
-                    <div class="text-xs text-gray-500">Dư dự kiến: ${remnant}cm</div>
-                </div>
-                <span class="text-${isGood ? 'green' : isOk ? 'yellow' : 'red'}-600 text-xs font-bold">${status}</span>
-            </div>
-        `;
-    }).join('');
-    
-    if (options.length === 0) {
-        listUi.innerHTML = "<p class='text-center text-gray-400 py-4'>Không có cây nào đủ dài để thay thế.</p>";
-    } else if (options.length === 1 && options[0].id === sourceId) {
-        listUi.innerHTML += "<p class='text-center text-gray-400 mt-2'>Không có cây khác phù hợp để thay thế.</p>";
+
+    // Sort ids trong mỗi nhóm theo createdAt (cũ nhất đầu)
+    Object.values(groups).forEach(group => {
+        group.ids.sort((a, b) => {
+            const ta = rawInventory.find(i => i.id === a)?.createdAt || 0;
+            const tb = rawInventory.find(i => i.id === b)?.createdAt || 0;
+            return ta - tb;  // cũ nhất trước
+        });
+        group.bestTreeId = group.ids[0];  // chọn cây cũ nhất làm đại diện
+    });
+
+    // Sort nhóm theo remnant tốt (ưu tiên remnant tốt nhất)
+    const sortedGroups = Object.values(groups).sort((a, b) => {
+        const scoreA = isGoodRemnant(a.remnant, 1) ? a.remnant + 10000 : a.remnant;
+        const scoreB = isGoodRemnant(b.remnant, 1) ? b.remnant + 10000 : b.remnant;
+        return scoreB - scoreA;  // tốt nhất lên đầu
+    });
+
+    // Đổ danh sách nhóm vào UI
+    const listUi = document.getElementById('manual-options');
+    if (!listUi) {
+        console.error("Không tìm thấy #manual-options");
+        return;
     }
-    
+
+    if (sortedGroups.length === 0) {
+        listUi.innerHTML = "<p class='text-center text-gray-400 py-4'>Không có cây nào đủ dài để thay thế.</p>";
+    } else {
+        listUi.innerHTML = sortedGroups.map(g => {
+            const isGood = isGoodRemnant(g.remnant, 1);
+            const isOk = isGoodRemnant(g.remnant, 2);
+            const status = isGood ? '✅ Tốt' : (isOk ? '🆗 Chấp nhận' : '⚠ Xấu');
+            const isCurrent = g.bestTreeId === sourceId;
+
+            return `
+                <div onclick="selectManualSource('${g.bestTreeId}', ${g.length})" 
+                     class="p-3 border rounded-lg cursor-pointer ${isCurrent ? 'bg-blue-50 border-blue-300' : ''} flex justify-between items-center select-none">
+                    <div>
+                        <div class="font-bold">${p.type} - Dài ${g.length}cm ${isCurrent ? '(Đang dùng)' : ''}</div>
+                        <div class="text-xs text-gray-500">Có ${g.qty} cây • Dư dự kiến: ${g.remnant}cm</div>
+                    </div>
+                    <span class="text-${isGood ? 'green' : isOk ? 'yellow' : 'red'}-600 text-xs font-bold">${status}</span>
+                </div>
+            `;
+        }).join('');
+    }
+
     document.getElementById('manual-modal').classList.remove('hidden');
 };
 
