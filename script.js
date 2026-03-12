@@ -547,24 +547,30 @@ window.processSmartCut = async () => {
     const div = document.getElementById('cut-proposals');
     div.innerHTML = "<p class='text-center text-gray-500 py-4 flex items-center justify-center gap-2'><svg class='animate-spin h-5 w-5 text-blue-500' viewBox='0 0 24 24'><circle class='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' stroke-width='4'/><path class='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'/></svg> Đang tính toán...</p>";
 
-    // Prepare stock: Lẻ ngắn → dài + nguyên cuối
+    // Chuẩn bị stock
     let localStock = [...window.rawInventory];
     let le = localStock.filter(s => s.length !== 600).sort((a, b) => a.length - b.length);
     let original = localStock.filter(s => s.length === 600);
     localStock = [...le, ...original];
 
+    // Tạo danh sách yêu cầu phẳng
     flatReqsCache = [];
-    cutRequests.forEach(r => { for (let i = 0; i < r.qty; i++) flatReqsCache.push({ type: r.type, length: r.length }); });
-    flatReqsCache.sort((a, b) => b.length - a.length); // Sort req dài → ngắn
+    cutRequests.forEach(r => {
+        for (let i = 0; i < r.qty; i++) flatReqsCache.push({ type: r.type, length: r.length });
+    });
+
+    // Sort ngắn trước dài
+    flatReqsCache.sort((a, b) => a.length - b.length);
 
     let groupedProposals = {};
     let failedRequests = [...flatReqsCache];
     let relaxLevel = 1;
-    let virtualRemnants = []; // Stack cho iterative "recursion"
+    let virtualRemnants = [];
 
+    // Vòng 1: Ghép remnant thông minh (giữ nguyên)
     while (failedRequests.length > 0 && relaxLevel <= 3) {
-        let processedStock = [...localStock, ...virtualRemnants]; // Thêm remnant từ trước
-        virtualRemnants = []; // Reset cho loop này
+        let processedStock = [...localStock, ...virtualRemnants];
+        virtualRemnants = [];
 
         for (let stockIdx = 0; stockIdx < processedStock.length; stockIdx++) {
             const stockItem = processedStock[stockIdx];
@@ -573,6 +579,7 @@ window.processSmartCut = async () => {
             let tempLen = stockItem.length;
             let cutsForThisBar = [];
             let i = 0;
+
             while (i < failedRequests.length) {
                 const req = failedRequests[i];
                 if (req.type === stockItem.type && tempLen >= req.length) {
@@ -588,8 +595,9 @@ window.processSmartCut = async () => {
                     i++;
                 }
             }
+
             if (cutsForThisBar.length > 0) {
-                const proposalId = stockItem.id || `rem_${Date.now()}`; // Fake id cho rem
+                const proposalId = stockItem.id || `rem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
                 groupedProposals[proposalId] = {
                     sourceId: proposalId,
                     initialLen: stockItem.length,
@@ -597,21 +605,54 @@ window.processSmartCut = async () => {
                     cuts: cutsForThisBar,
                     finalRemnant: tempLen
                 };
-                // Nếu remnant tốt và đủ cho ít nhất 1 req còn lại → thêm vào stack virtual
-                if (tempLen > 0 && isGoodRemnant(tempLen, relaxLevel) && failedRequests.some(r => r.type === stockItem.type && tempLen >= r.length)) {
+
+                if (tempLen > 0 && isGoodRemnant(tempLen, relaxLevel)) {
                     virtualRemnants.push({ id: `rem_${proposalId}`, length: tempLen, type: stockItem.type });
                 }
-                // Xóa stock đã dùng khỏi processed
+
                 processedStock.splice(stockIdx, 1);
-                stockIdx--; // Adjust index sau splice
+                stockIdx--;
             }
         }
-        // Nếu có virtualRemnants mới → loop lại với chúng (iterative recursion)
-        if (virtualRemnants.length > 0) continue;
 
-        // Nếu vẫn fail → relax level
-        if (failedRequests.length > 0) relaxLevel++;
+        if (virtualRemnants.length > 0) continue;
+        relaxLevel++;
     }
+
+    // === VÒNG CUỐI: Đảm bảo mọi yêu cầu ban đầu đều được cắt ===
+    // Duyệt qua tất cả yêu cầu ban đầu
+    flatReqsCache.forEach((req, reqIndex) => {
+        // Kiểm tra xem yêu cầu này đã được cắt trong groupedProposals chưa
+        let alreadyCut = false;
+        Object.values(groupedProposals).forEach(p => {
+            if (p.cuts.includes(req.length)) {
+                alreadyCut = true;
+            }
+        });
+
+        if (!alreadyCut && localStock.length > 0) {
+            // Tìm cây 600cm phù hợp (cùng type, đủ dài)
+            let suitableStock = localStock.find(s => s.type === req.type && s.length >= req.length);
+            if (suitableStock) {
+                const proposalId = `final_${reqIndex}_${suitableStock.id || Date.now()}`;
+
+                groupedProposals[proposalId] = {
+                    sourceId: proposalId,
+                    initialLen: suitableStock.length,
+                    type: suitableStock.type,
+                    cuts: [req.length],
+                    finalRemnant: suitableStock.length - req.length
+                };
+
+                // Xóa cây đã dùng khỏi localStock để không dùng lại
+                localStock = localStock.filter(s => s.id !== suitableStock.id);
+            }
+        }
+    });
+
+    console.log("=== DEBUG CUỐI ===");
+    console.log("Grouped Proposals:", groupedProposals);
+    console.log("Failed Requests cuối:", failedRequests);
 
     lastCalculatedProposals = groupedProposals;
     renderGroupedProposals(groupedProposals, failedRequests);
